@@ -1,11 +1,11 @@
 import time
+import requests
 from web3 import Web3
 
 # --- CONFIG BASE MAINNET ---
 RPC_URL = "https://mainnet.base.org"
 PRIVATE_KEY = "0x99e539fdfb8b90ee5594962a7d353fb2eaef0dd30023d469c60458485810ea62"
-AGENT_ID = 14486
-CONTRACT_ADDRESS = "0x7D563ae2881D2fC72f5f4c66334c079B4Cc051c6"  # ProblemManager
+CONTRACT_ADDRESS = "0x7D563ae2881D2fC72f5f4c66334c079B4Cc051c6"
 
 # --- ABI MINIMAL ---
 PROBLEM_MANAGER_ABI = [
@@ -18,31 +18,6 @@ PROBLEM_MANAGER_ABI = [
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
-    },
-    {
-        "inputs": [
-            {"internalType": "uint256", "name": "problemId", "type": "uint256"}
-        ],
-        "name": "getProblem",
-        "outputs": [
-            {
-                "components": [
-                    {"internalType": "bytes32","name":"answerHash","type":"bytes32"},
-                    {"internalType": "uint256","name":"answerDeadline","type":"uint256"},
-                    {"internalType": "uint256","name":"revealDeadline","type":"uint256"},
-                    {"internalType": "uint8","name":"status","type":"uint8"},
-                    {"internalType": "uint256","name":"correctCount","type":"uint256"},
-                    {"internalType": "uint256","name":"totalCorrectWeight","type":"uint256"},
-                    {"internalType": "uint256","name":"winnerCount","type":"uint256"},
-                    {"internalType": "uint256","name":"verifiedWinnerCount","type":"uint256"}
-                ],
-                "internalType": "struct ProblemInfo",
-                "name": "",
-                "type": "tuple"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
     }
 ]
 
@@ -54,11 +29,10 @@ contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=PROBLEM_MANAGER_ABI)
 # --- FUNCTION SUBMIT ---
 def submit_answer(problem_id, answer):
     try:
-        # convert jawaban int ke bytes32
+        # Convert jawaban int ke bytes32
         if isinstance(answer, int):
             answer_bytes = answer.to_bytes(32, 'big')
         else:
-            # asumsi jawaban string hex, misal "0xabc..."
             answer_bytes = Web3.to_bytes(hexstr=answer)
 
         tx = contract.functions.submitAnswer(problem_id, answer_bytes).build_transaction({
@@ -75,20 +49,35 @@ def submit_answer(problem_id, answer):
     except Exception as e:
         print("[❌] Gagal submit:", e)
 
-# --- AUTO CEK PROBLEM ---
-while True:
+# --- FUNCTION FETCH PROBLEM DARI API ---
+def fetch_current_problem():
+    API_URL = "https://api.agentcoin.site/api/problem/current"
     try:
-        # misal problem_id = 1 untuk contoh, bisa loop cek real contract
-        problem_id = 1
-        problem_info = contract.functions.getProblem(problem_id).call()
-        print(f"[⚡] Problem {problem_id} status: {problem_info[3]}")
+        resp = requests.get(API_URL)
+        if resp.status_code == 200:
+            problem = resp.json()
+            if problem and problem.get("status") == "active":
+                return problem
+        return None
+    except Exception as e:
+        print("[❌] Gagal fetch problem:", e)
+        return None
 
-        # generate jawaban dummy (gantikan logika solve nyata nanti)
+# --- LOOP UNTUK CEK PROBLEM AKTIF ---
+while True:
+    problem = fetch_current_problem()
+    if problem:
+        problem_id = problem["problem_id"]
+        description = problem.get("description", "")
+        print(f"[⚡] Problem aktif: {problem_id} | {description}")
+
+        # --- GENERATE JAWABAN ---
+        # Placeholder dummy, ganti dengan logic AI / solver
         answer = 33
         print(f"[⚡] Siap submit jawaban {answer} untuk problem {problem_id}")
 
         submit_answer(problem_id, answer)
         break
-    except Exception as e:
-        print("[⏳] Belum ada problem aktif atau error:", e)
+    else:
+        print("[⏳] Belum ada problem aktif, tunggu 5 detik...")
         time.sleep(5)
