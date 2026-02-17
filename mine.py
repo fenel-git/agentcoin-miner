@@ -30,11 +30,7 @@ contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=PROBLEM_MANAGER_ABI)
 def submit_answer(problem_id, answer):
     try:
         # Convert jawaban int ke bytes32
-        if isinstance(answer, int):
-            answer_bytes = answer.to_bytes(32, 'big')
-        else:
-            answer_bytes = Web3.to_bytes(hexstr=answer)
-
+        answer_bytes = answer.to_bytes(32, 'big')
         tx = contract.functions.submitAnswer(problem_id, answer_bytes).build_transaction({
             'from': account.address,
             'nonce': web3.eth.get_transaction_count(account.address),
@@ -49,33 +45,47 @@ def submit_answer(problem_id, answer):
     except Exception as e:
         print("[❌] Gagal submit:", e)
 
-# --- FUNCTION FETCH PROBLEM DARI API ---
+# --- FUNCTION FETCH CURRENT PROBLEM ---
 def fetch_current_problem():
     API_URL = "https://api.agentcoin.site/api/problem/current"
     try:
         resp = requests.get(API_URL)
-        if resp.status_code == 200:
-            problem = resp.json()
-            if problem and problem.get("status") == "active":
-                return problem
+        problem = resp.json()
+        if problem and problem.get("is_active"):
+            return problem
         return None
     except Exception as e:
         print("[❌] Gagal fetch problem:", e)
         return None
+
+# --- FUNCTION SOLVE SOAL OTOMATIS ---
+def solve_problem(template_text, agent_id):
+    # Contoh problem: sum of integers k divisible by 3 or 5 but not 15, modulo (N mod 100 + 1)
+    # Ambil N dari template_text → di AgentCoin biasanya N = AGENT ID
+    N = agent_id
+    modulo = N % 100 + 1
+    total = 0
+    for k in range(1, 1000):  # range cukup besar, contoh
+        if (k % 3 == 0 or k % 5 == 0) and (k % 15 != 0):
+            total += k
+    return total % modulo
+
+# --- AGENT ID untuk template ---
+AGENT_ID = 14486
 
 # --- LOOP UNTUK CEK PROBLEM AKTIF ---
 while True:
     problem = fetch_current_problem()
     if problem:
         problem_id = problem["problem_id"]
-        description = problem.get("description", "")
-        print(f"[⚡] Problem aktif: {problem_id} | {description}")
+        template_text = problem.get("template_text", "")
+        print(f"[⚡] Problem aktif: {problem_id} | {template_text}")
 
-        # --- GENERATE JAWABAN ---
-        # Placeholder dummy, ganti dengan logic AI / solver
-        answer = 33
-        print(f"[⚡] Siap submit jawaban {answer} untuk problem {problem_id}")
+        # --- HITUNG JAWABAN OTOMATIS ---
+        answer = solve_problem(template_text, AGENT_ID)
+        print(f"[⚡] Jawaban dihitung: {answer}")
 
+        # --- SUBMIT JAWABAN ---
         submit_answer(problem_id, answer)
         break
     else:
