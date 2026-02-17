@@ -39,7 +39,7 @@ def submit_answer(problem_id, answer):
         })
 
         signed_tx = account.sign_transaction(tx)
-        tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
         print(f"[✅] Jawaban dikirim! Tx hash: {tx_hash.hex()}")
         return tx_hash
     except Exception as e:
