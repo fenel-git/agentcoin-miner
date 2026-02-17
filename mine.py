@@ -1,5 +1,6 @@
 import time
 import requests
+import re
 from web3 import Web3
 
 # =======================
@@ -49,13 +50,21 @@ def fetch_current_problem():
         return None
 
 # =======================
-# SOLVE PROBLEM OTOMATIS
+# PARSE TEMPLATE_TEXT DAN HITUNG JAWABAN
 # =======================
-def solve_problem(agent_id):
-    modulo = agent_id % 100 + 1
+def solve_problem_from_template(template_text, agent_id):
+    """
+    Contoh parsing sederhana:
+    "Compute the sum of all positive integers k <= N such that k is divisible by 3 or 5, but not divisible by 15.
+    Then, take the result modulo (N mod 100+1)"
+    """
+    # Ambil N dari template_text
+    match = re.search(r"Let N.*?(\d+)", template_text)
+    N = int(match.group(1)) if match else 10000  # default 10000
+    modulo = agent_id % 100 + 1  # default seperti sebelumnya
+
     total = 0
-    # Sum integers 1..9999 divisible by 3 or 5 but not 15
-    for k in range(1, 10000):
+    for k in range(1, N+1):
         if (k % 3 == 0 or k % 5 == 0) and (k % 15 != 0):
             total += k
     return total % modulo
@@ -91,11 +100,11 @@ while True:
         template_text = problem.get("template_text", "")
         print(f"[⚡] Problem aktif: {problem_id} | {template_text}")
 
-        answer = solve_problem(AGENT_ID)
+        answer = solve_problem_from_template(template_text, AGENT_ID)
         print(f"[⚡] Jawaban dihitung: {answer}")
 
         submit_answer(problem_id, answer)
-        last_problem_id = problem_id  # update supaya tidak submit ulang
+        last_problem_id = problem_id  # supaya tidak submit ulang
     else:
         print("[⏳] Belum ada problem baru, tunggu 5 detik...")
 
